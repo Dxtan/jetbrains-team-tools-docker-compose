@@ -46,7 +46,7 @@ services:
     expose:
       - 8111
     volumes:
-      - ./teamcity/data_dir:/data/teamcity_server/datadir
+      - ./teamcity/datadir:/data/teamcity_server/datadir
       - ./teamcity/teamcity-server-logs:/opt/teamcity/logs
     environment:
       - VIRTUAL_HOST=tc.local

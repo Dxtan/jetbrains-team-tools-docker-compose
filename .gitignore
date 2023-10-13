@@ -1,0 +1,15 @@
+
+buildserver_pgdata/
+teamcity/data_dir/config/_logging/
+teamcity/data_dir/config/_notifications/
+teamcity/data_dir/system/caches/
+teamcity/data_dir/system/pluginData/
+teamcity/teamcity-server-logs/
+teamcity/data_dir/config/*.dtd
+teamcity/data_dir/config/_auth/
+teamcity/data_dir/config/*.properties.dist
+hub/logs/
+youtrack/logs/
+youtrack/conf/
+teamcity/data_dir/config/*.xml
+hub/conf/*.dist

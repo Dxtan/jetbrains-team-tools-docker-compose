@@ -1,0 +1,151 @@
+version: '3.1'
+
+
+# Default ${TEAMCITY_VERSION} is defined in .env file
+
+# ./buildserver_pgdata - Posgres DB data
+# ./data_dir - TeamCity data directory
+# ./teamcity-server-logs - logs of primary TeamCity server
+# ./agents/agent-1/conf - configuration directory for the first build agent
+# ./agents/agent-1/conf - configuration directory for the second build agent
+
+services:
+  nginx-proxy:
+    image: jwilder/nginx-proxy:alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+        - 80:80
+        # - 443:443
+    volumes:
+        # - ./ssl:/etc/nginx/certs
+        - /var/run/docker.sock:/tmp/docker.sock:ro
+    environment:
+        - ENABLE_IPV6=true
+    networks:
+      - jetbrains-tools
+  postgres-db:
+    image: postgres:${POSTGRES_VERSION}
+    container_name: postgres-db
+    platform: linux/amd64
+    environment:
+      - POSTGRES_PASSWORD=teamcity_password
+      - POSTGRES_USER=teamcity_user
+      - POSTGRES_DB=teamcity_db
+      - PG_DATA=/var/lib/postgresql/data
+    volumes:
+      - ./buildserver_pgdata:/var/lib/postgresql/data
+    ports:
+      - 5433:5432
+    networks:
+      - jetbrains-tools
+
+  teamcity:
+    image: jetbrains/teamcity-server:${TEAMCITY_VERSION}
+    container_name: "teamcity-server"
+    expose:
+      - 8111
+    volumes:
+      - ./teamcity/data_dir:/data/teamcity_server/datadir
+      - ./teamcity/teamcity-server-logs:/opt/teamcity/logs
+    environment:
+      - VIRTUAL_HOST=tc.local
+      - VIRTUAL_PORT=8111
+      - HSTS=off
+    depends_on:
+      - postgres-db
+    links:
+      - postgres-db:db
+    networks:
+      - jetbrains-tools
+
+  # teamcity-agent-1:
+  #   container_name: "teamcity-agent-1"
+  #   build:
+  #     context: ./teamcity/
+  #     dockerfile: "agent.Dockerfile"
+  #   links:
+  #       - "teamcity:teamcity"
+  #   privileged: true
+  #   volumes:
+  #     - ./teamcity/agents/agent-1/conf:/data/teamcity_agent/conf
+  #   environment:
+  #     - DOCKER_IN_DOCKER=start
+  #     - SERVER_URL=teamcity:8111
+  #     - AGENT_NAME=agent_1
+  # teamcity-agent-2:
+  #   container_name: "teamcity-agent-2"
+  #   build:
+  #     context: ./teamcity/
+  #     dockerfile: "agent.Dockerfile"
+  #   links:
+  #       - "teamcity:teamcity"
+  #   privileged: true
+  #   volumes:
+  #     - ./teamcity/agents/agent-2/conf:/data/teamcity_agent/conf
+  #   environment:
+  #     - DOCKER_IN_DOCKER=start
+  #     - SERVER_URL=teamcity:8111
+  #     - AGENT_NAME=agent_2
+
+  youtrack:
+    image: "jetbrains/youtrack:${YOUTRACK_VERSION}"
+    container_name: "youtrack"
+    expose:
+      - 8080
+    volumes:
+      - ./youtrack/data:/opt/youtrack/data
+      - ./youtrack/conf:/opt/youtrack/conf
+      - ./youtrack/logs:/opt/youtrack/logs
+      - ./youtrack/backups:/opt/youtrack/backups
+    networks:
+      - jetbrains-tools
+  hub:
+    image: "jetbrains/hub:${HUB_VERSION}"
+    container_name: "hub"
+    expose:
+      - 8080
+    environment:
+      - QODANA_TOKEN:${QODANA_TOKEN}
+      - VIRTUAL_HOST=hub.local
+      - VIRTUAL_PORT=80
+      - HSTS=off
+    volumes:
+      - ./hub/data:/opt/hub/data
+      - ./hub/conf:/opt/hub/conf
+      - ./hub/logs:/opt/hub/logs
+      - ./hub/backups:/opt/hub/backups
+    networks:
+      - jetbrains-tools
+  qodana:
+    image: "jetbrains/qodana-jvm:latest"
+    container_name: "qodana"
+    expose:
+      - 8080
+    environment:
+      - QODANA_TOKEN:${QODANA_TOKEN}
+      - VIRTUAL_HOST=qodana.local
+      - VIRTUAL_PORT=80
+      - HSTS=off
+    volumes:
+      - ./qodana/data/project:/data/project/
+    networks:
+      - jetbrains-tools
+  # upsource:
+  #   network_mode: bridge
+  #   image: jetbrains/upsource:2017.3.2774
+  #   container_name: upsource-server-instance
+  #   expose:
+  #       - 8080
+  #   environment:
+  #       - VIRTUAL_HOST=us.local
+  #       - VIRTUAL_PORT=80
+  #       - HSTS=off
+  #   volumes:
+  #       - "/opt/jetbrains/upsource/data/:/opt/upsource/data"
+  #       - "/opt/jetbrains/upsource/conf/:/opt/upsource/conf"
+  #       - "/opt/jetbrains/upsource/logs/:/opt/upsource/logs"
+  #       - "/opt/jetbrains/upsource/backups/:/opt/upsource/backups"
+networks:
+  jetbrains-tools:
+    external: true
